@@ -18,6 +18,7 @@ Owners below follow the "Tasks For Next Week" assignments: rep counting goes to 
 | 9 | No way to stop the camera | UI | Irene | Code review |
 | 10 | "Reset reps" doesn't clear the feedback message | UI | Irene | Code review |
 | 11 | Needs internet and a GPU, with an unclear error otherwise | Setup | Akshay | Code review |
+| 12 | Blocked camera or slow model download looks like a broken camera | UI | Irene | Manual test (Caroline's laptop) |
 
 ## How it was tested
 
@@ -96,6 +97,12 @@ The counter resets, but the old message (for example, "Good rep") stays.
 
 ### 11. Needs internet and a GPU, with an unclear error otherwise
 The WASM runtime and the model are downloaded from CDNs on every start, and the model uses `delegate: "GPU"` with no CPU fallback. If either fails, the only message is "Check camera permission and your connection".
+
+### 12. Blocked camera or slow model download looks like a broken camera
+**Found:** manual test on a Windows laptop.
+**Steps:** With the laptop camera blocked (privacy shutter, camera off key, or Windows privacy setting), click **Start camera**.
+**Actual:** The video shows the system's crossed-out camera image, while the app says "Running." and "No person detected". Nothing tells the user that the camera itself is blocked.
+**Related:** The camera only starts *after* the ~6 MB pose model finishes downloading. On a slow network, the video area stays black with just "Loading..." for a long time. Starting the camera first, or showing download progress, would make this clearer.
 
 ## Manual webcam checklist
 

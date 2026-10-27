@@ -61,6 +61,8 @@ These thresholds live in `CONFIG` in `frontend/movement.js`.
 
 - **"Camera access is unavailable"**: the page must be opened on `localhost` or over HTTPS. Browsers block the camera on plain `http://` network addresses.
 - **"Unable to start..."**: check that camera permission is allowed (the camera icon in the address bar), that no other app (Zoom, Teams) is using the camera, and that you're online.
+- **Video shows a crossed-out camera icon (status says "Running.")**: the camera is blocked by the laptop, not the app. Open the physical privacy shutter, press the camera on/off key (usually on the F-key row), or check Windows Settings → Privacy & security → Camera. Test with the Windows Camera app. If that works, pick the right webcam from the camera icon in the browser's address bar.
+- **Camera stays black for a while after clicking Start**: the pose model (~6 MB) downloads before the camera turns on. Wait, or try a faster network.
 - **"Can't see your leg clearly"**: step back or improve lighting so your whole leg is visible.
 - **`npm` not found**: install Node.js and reopen your terminal.
 
