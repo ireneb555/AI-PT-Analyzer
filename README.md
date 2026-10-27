@@ -22,7 +22,8 @@ The current prototype is a **squat tracker**. It finds the hip, knee, and ankle 
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 20 or newer (includes npm). Check with `node -v`.
+- [VS Code](https://code.visualstudio.com/) and [Git](https://git-scm.com/).
+- [Node.js](https://nodejs.org/), LTS version (includes npm). Check with `node -v`.
 - A webcam.
 - A recent Chrome or Edge browser (other browsers are untested so far).
 - An internet connection. The pose model and runtime are downloaded when you click **Start camera**.
@@ -36,7 +37,9 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints (usually http://localhost:5173), click **Start camera**, and allow camera access.
+Open the URL Vite prints (usually http://localhost:5173), click **Start camera**, and allow camera access. Press `Ctrl + C` in the terminal to stop the server.
+
+You only need `npm install` the first time, or when dependencies change. After that, `npm run dev` is enough.
 
 ### Using the squat tracker
 
@@ -84,17 +87,34 @@ docs/
 
 The tech stack may change as we develop and test the initial prototype.
 
+## Known Issues
+
+Main issues found in testing so far. Full details, simulated test results, and the manual test checklist are in [docs/known-issues.md](docs/known-issues.md).
+
+- Fast squats (under about 1 s) may not count or get graded too shallow, especially on slower computers.
+- Squats shallower than about 105° never count.
+- A small knee wobble can show "That rep didn't count".
+- Starting the camera while seated and then standing counts a rep.
+- The tracked leg can switch between left and right mid-rep.
+- Tracking needs a side-on view. Facing the camera likely won't count reps.
+- Warning messages don't clear after you step back into frame.
+- There's no button to stop the camera.
+
 ## Contributing
 
-Work on your own branch and open a pull request into `main`. Don't push directly to `main`.
+Work on your own branch and open a pull request into `main`. Please don't push directly to `main` or force-push.
 
 ```bash
-git checkout -b your-name/short-description
-# ...make changes...
-git push -u origin your-name/short-description
+git switch main
+git pull origin main            # get the latest code
+git switch -c yourname-task     # create your branch
+# ...make changes and check the app still runs...
+git add .
+git commit -m "Describe your change"
+git push -u origin yourname-task
 ```
 
-Known bugs are tracked in [docs/known-issues.md](docs/known-issues.md).
+Then open the repository on GitHub, click **Compare & pull request**, describe your changes, and request a review. If Git shows an error or merge conflict, share a screenshot in Discord before running anything that could overwrite changes.
 
 ## Initial Goals
 

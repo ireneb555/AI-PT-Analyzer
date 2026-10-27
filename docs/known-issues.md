@@ -1,64 +1,121 @@
 # Known Issues & Test Notes
 
 Testing of the squat tracker prototype (`frontend/`), October 2026.
+Owners below follow the "Tasks For Next Week" assignments: rep counting goes to Krishna, tracking stability to Akshay, and React/UI to Irene.
 
-## What was tested
+## Summary
+
+| # | Issue | Area | Owner | Found by |
+| --- | --- | --- | --- | --- |
+| 1 | Fast squats aren't counted, or are graded too shallow | Thresholds / smoothing | Krishna | Simulation |
+| 2 | Small knee wobble shows "That rep didn't count" | Rep counting | Krishna | Simulation |
+| 3 | Rep counted when starting seated or crouched | Rep counting | Krishna | Simulation |
+| 4 | Squats of about 110° never count | Thresholds | Krishna | Simulation |
+| 5 | Tracked leg can flip between frames | Tracking | Akshay | Code review, needs webcam test |
+| 6 | Facing the camera, squats likely aren't counted | Tracking / camera position | Akshay | Code review, needs webcam test |
+| 7 | Warning messages stick after the problem is fixed | UI | Irene | Code review |
+| 8 | Skeleton overlay misaligned on non-4:3 cameras | UI | Irene | Code review, needs webcam test |
+| 9 | No way to stop the camera | UI | Irene | Code review |
+| 10 | "Reset reps" doesn't clear the feedback message | UI | Irene | Code review |
+| 11 | Needs internet and a GPU, with an unclear error otherwise | Setup | Akshay | Code review |
+
+## How it was tested
 
 | Area | Method | Result |
 | --- | --- | --- |
 | Install / build | `npm install`, `npm run build` (Node 24, npm 11) | Passes |
 | Dev server | `npm run dev`, loaded `/`, `/src/main.jsx`, `/src/App.jsx` | Serves correctly |
-| Remote assets | Fetched MediaPipe WASM (jsDelivr) and `pose_landmarker_lite.task` (Google Storage) | Both reachable |
-| Rep counting | Fed simulated knee-angle sequences into `RepCounter` | See bugs 2 and 3 |
+| Remote assets | Fetched the MediaPipe WASM (jsDelivr) and `pose_landmarker_lite.task` (Google Storage) | Both reachable |
 | Angle math | `jointAngle` on straight, 90°, and degenerate inputs | Correct (180°, 90°, `null`) |
-| Live webcam tracking | Manual, see checklist below | **Not yet done** |
+| Depth × speed | Simulated knee-angle curves fed through the app's smoothing and `RepCounter` at 30 and 15 fps | See bugs 1 and 4 |
+| Live webcam | Manual testing, see the checklist at the bottom | **In progress** |
+
+The simulation doesn't use a camera. It generates the knee angle a perfect tracker would report and runs it through the same smoothing (`CONFIG.smoothing`) and `RepCounter` the app uses. This isolates the counting logic from MediaPipe noise.
+
+### Depth × speed results (simulated)
+
+"Duration" is the time for one full down-and-up squat. ✅ = counted as "Good rep", 🟡 = counted as "go deeper", ❌ = not counted.
+
+| True depth | 3 s | 1.5 s | 0.8 s | 0.5 s |
+| --- | --- | --- | --- | --- |
+| **30 fps** | | | | |
+| 90° | ✅ | ✅ | ✅ | 🟡 |
+| 100° | 🟡 | 🟡 | 🟡 | ❌ |
+| 110° | ❌ | ❌ | ❌ | ❌ |
+| **15 fps** (slower laptop) | | | | |
+| 90° | ✅ | ✅ | 🟡 | ❌ |
+| 100° | 🟡 | 🟡 | ❌ | ❌ |
+| 110° | ❌ | ❌ | ❌ | ❌ |
+
+Five deep 1-second squats in a row with no pause counted correctly (5/5).
 
 ## Bugs
 
-### 1. Warning messages stick after the problem is fixed
+### 1. Fast squats aren't counted, or are graded too shallow
+**Where:** `src/App.jsx` (smoothing), `movement.js` (`CONFIG`)
+The knee angle is smoothed with `smoothed += 0.35 × (raw − smoothed)` once per frame, which flattens the bottom of a quick squat. A 90° squat done in 0.5 s reads as about 98° at 30 fps and about 109° at 15 fps. It's then graded "go deeper" or not counted at all.
+Because smoothing happens per frame instead of per unit of time, **the same squat scores differently on slower computers**.
+
+### 2. Small knee wobble shows "That rep didn't count"
+**Where:** `movement.js`, `RepCounter.update`
+**Steps:** While standing, bend your knee slightly (just under 150°) and straighten.
+**Expected:** Nothing, because no squat was attempted.
+**Actual:** "You stood up before reaching depth. That rep didn't count." The "started squatting" (150°) and "standing" (160°) thresholds are only 10° apart, so normal sway crosses them.
+
+### 3. Rep counted when starting seated or crouched
+**Where:** `movement.js`, `RepCounter.update`
+**Steps:** Click **Start camera** while sitting or crouched, then stand up.
+**Expected:** No rep.
+**Actual:** 1 rep, "Good rep". The counter always starts in the `up` stage, so a first reading of 90° goes straight to `bottom`.
+
+### 4. Squats of about 110° never count
+**Where:** `movement.js`, `CONFIG.bottomAngle = 105`
+A rep only counts once the knee bends past 105°. Rehab users may not be able to squat that deep, so a controlled partial squat always gets "didn't count". This is a threshold question as much as a bug. It's worth deciding the target range with the PT/biomechanics mentor, and possibly making it adjustable.
+
+### 5. Tracked leg can flip between frames (needs webcam confirmation)
+**Where:** `movement.js`, `pickSide`
+`pickSide` re-picks the more visible leg on every frame, with no hysteresis. When both legs are similarly visible, the side can flip mid-rep. The smoothed angle then mixes two different legs, and the "Tracking side" label flickers. (This matches Akshay's task: "prevent the tracker from switching between left and right legs.")
+
+### 6. Facing the camera, squats likely aren't counted (needs webcam confirmation)
+The knee angle is measured in 2D. When the user faces the camera, their knees move toward the lens, so hip, knee, and ankle stay nearly in a vertical line on screen and the measured angle barely changes. The app only says "Stand side-on" before you start, and gives no warning while running.
+
+### 7. Warning messages stick after the problem is fixed
 **Where:** `src/App.jsx`, `processFrame`
 **Steps:** Start the camera, step out of frame, step back in.
-**Expected:** The "No person detected" or "Can't see your leg" message clears once you're tracked again.
-**Actual:** The message stays on screen until the next rep event, even though the angle is updating again. A non-rep frame never resets feedback.
+**Actual:** "No person detected" or "Can't see your leg clearly" stays on screen until the next rep, even though tracking has resumed.
 
-### 2. Small wobble shows a "didn't count" message
-**Where:** `movement.js`, `RepCounter.update`
-**Steps:** While standing, bend your knee slightly (angle drops just under 150°) and straighten.
-**Expected:** Nothing, because no squat was attempted.
-**Actual:** "You stood up before reaching depth. That rep didn't count." A dip of 175° → 148° → 175° triggers a `partial` event. The gap between "starting to squat" (150°) and "standing" (160°) is only 10°, so normal sway can cross it.
-
-### 3. A rep is counted without squatting down
-**Where:** `movement.js`, `RepCounter.update`
-**Steps:** Start the camera while sitting or crouched, then stand up.
-**Expected:** No rep, because there was no descent.
-**Actual:** 1 rep, marked "Good rep". The counter starts in the `up` stage no matter what the first angle is, so a first reading of 90° goes straight to `bottom`.
-
-### 4. Tracked leg can flip between frames (needs live confirmation)
-**Where:** `movement.js`, `pickSide`; `src/App.jsx`
-`pickSide` picks whichever leg has higher visibility on every frame, with no hysteresis. When both legs are similarly visible (for example, facing the camera), the side can flip back and forth. The smoothed angle then mixes values from two different legs, and the "Tracking side" label flickers.
-
-### 5. Skeleton overlay misaligned on non-4:3 cameras (needs live confirmation)
+### 8. Skeleton overlay misaligned on non-4:3 cameras (needs webcam confirmation)
 **Where:** `style.css`
-The video uses `object-fit: cover`, which crops it, but the canvas is stretched to the box. If the webcam ignores the 640×480 request and returns 16:9 (common on laptops), the drawn skeleton won't line up with the body.
+The video uses `object-fit: cover` (cropped), but the canvas is stretched. If the webcam returns 16:9 instead of the requested 640×480, the drawn skeleton won't line up with the body.
 
-### 6. No way to stop the camera
-After starting, the button stays disabled as "Camera on", and the webcam light stays on until the tab is closed.
+### 9. No way to stop the camera
+After you click start, the button stays disabled as "Camera on", and the webcam stays on until you close the tab.
 
-### 7. "Reset reps" doesn't clear the feedback message
-The rep count resets, but the old message (for example, "Good rep") stays.
+### 10. "Reset reps" doesn't clear the feedback message
+The counter resets, but the old message (for example, "Good rep") stays.
 
-### 8. Needs internet and a GPU, with an unclear error otherwise
-The WASM runtime and the model are downloaded from CDNs on every start, and the model is created with `delegate: "GPU"` with no CPU fallback. Offline, or on a machine where the WebGL GPU delegate fails, the user sees only "Unable to start. Check camera permission and your connection", which doesn't tell them the real cause.
+### 11. Needs internet and a GPU, with an unclear error otherwise
+The WASM runtime and the model are downloaded from CDNs on every start, and the model uses `delegate: "GPU"` with no CPU fallback. If either fails, the only message is "Check camera permission and your connection".
 
-### 9. React state updated every frame (performance)
-`processFrame` calls up to six `setState`s per animation frame, and it runs detection even when the video hasn't produced a new frame. This works, but it causes extra re-renders and may lag on slower laptops.
+## Manual webcam checklist
 
-## To verify in a real browser
+Fill in as tested. Record the browser, laptop, and lighting for each session.
 
-- [ ] `landmarks[i].visibility` is actually populated by `@mediapipe/tasks-vision` 0.10.14. If it's missing, `pickSide` treats it as 0 and the app will always say "Can't see your leg".
-- [ ] Camera permission denied shows a helpful error, and "Try again" works after permission is granted.
-- [ ] Skeleton lines up with the body (bug 5).
-- [ ] Side-on deep squats count as "Good rep"; shallower ones count as "go a bit deeper".
-- [ ] Tracking-side label is stable when side-on (bug 4).
-- [ ] Behavior after switching tabs and coming back.
-- [ ] Browsers: Chrome, Edge, Firefox, Safari.
+| Scenario | Expected | Result |
+| --- | --- | --- |
+| Side-on, deep slow squat (~3 s) | Good rep | |
+| Side-on, parallel squat (~100°) | Rep, "go deeper" | |
+| Side-on, shallow squat (~120°) | Not counted | |
+| Side-on, fast squats (< 1 s) | Counted (bug 1) | |
+| 10 reps in a row, normal pace | 10 reps | |
+| Facing the camera | ? (bug 6) | |
+| Camera at 45° | ? | |
+| Camera low (on desk) vs. eye level | ? | |
+| Too close (ankles out of frame) | "Can't see your leg" | |
+| Walk out of frame and back in | Message clears (bug 7) | |
+| Start the camera while seated, stand up | No rep (bug 3) | |
+| "Tracking side" stays stable during reps | Stable (bug 5) | |
+| Skeleton lines up with body | Aligned (bug 8) | |
+| Deny camera permission, then "Try again" | Clear error, recovers | |
+| `landmarks[i].visibility` is populated (check in console) | Values 0–1 | |
+| Chrome / Edge / Firefox / Safari | Works | |
