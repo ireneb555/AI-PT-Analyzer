@@ -11,7 +11,7 @@ Owners below follow the "Tasks For Next Week" assignments: rep counting goes to 
 | 2 | Small knee wobble shows "That rep didn't count" | Rep counting | Krishna | Simulation |
 | 3 | Rep counted when starting seated or crouched | Rep counting | Krishna | Simulation |
 | 4 | Squats of about 110° never count | Thresholds | Krishna | Simulation |
-| 5 | Tracked leg can flip between frames | Tracking | Akshay | Code review, needs webcam test |
+| 5 | Tracked leg flips between left and right mid-rep | Tracking | Akshay | **Confirmed**, manual test (phone) |
 | 6 | Facing the camera, the app still reports only one leg ("left"/"right") | Tracking / camera position | Akshay | Manual test (phone) |
 | 7 | Warning messages stick after the problem is fixed | UI | Irene | Code review |
 | 8 | Skeleton overlay misaligned on non-4:3 cameras | UI | Irene | Code review, needs webcam test |
@@ -73,16 +73,17 @@ Because smoothing happens per frame instead of per unit of time, **the same squa
 **Where:** `movement.js`, `CONFIG.bottomAngle = 105`
 A rep only counts once the knee bends past 105°. Rehab users may not be able to squat that deep, so a controlled partial squat always gets "didn't count". This is a threshold question as much as a bug. It's worth deciding the target range with the PT/biomechanics mentor, and possibly making it adjustable.
 
-### 5. Tracked leg can flip between frames (needs webcam confirmation)
+### 5. Tracked leg flips between left and right mid-rep (confirmed)
 **Where:** `movement.js`, `pickSide`
-`pickSide` re-picks the more visible leg on every frame, with no hysteresis. When both legs are similarly visible, the side can flip mid-rep. The smoothed angle then mixes two different legs, and the "Tracking side" label flickers. (This matches Akshay's task: "prevent the tracker from switching between left and right legs.")
+**Found:** manual test on a phone. Facing the camera, rotating slightly during a squat makes "Tracking side" flip between left and right.
+`pickSide` re-picks the more visible leg on every frame, with no hysteresis. When both legs are similarly visible, a small turn of the body is enough to switch sides mid-rep. The smoothed angle then mixes two different legs, and the "Tracking side" label flickers. (This matches Akshay's task: "prevent the tracker from switching between left and right legs.")
 
 ### 6. Facing the camera, the app still reports only one leg
 **Found:** manual test on a phone (front camera).
 **Steps:** Face the camera head-on and do squats.
 **Expected:** Either a "front view" mode that uses both legs, or a prompt to turn side-on.
 **Actual:** Reps **were counted correctly**. Code review had predicted they wouldn't be, but in practice it worked. However, "Tracking side" still shows "left" or "right", because `pickSide` always picks the single most visible leg and has no front-view case. Only one knee is measured, so a problem in the other leg would go unnoticed.
-**Still to check:** whether the side stays fixed or flips during head-on reps (see bug 5), and whether the reported depth matches the side-on depth for the same squat.
+Reported depth looked reasonable head-on. The side does flip with slight body rotation (bug 5).
 
 ### 7. Warning messages stick after the problem is fixed
 **Where:** `src/App.jsx`, `processFrame`
@@ -119,6 +120,8 @@ Fill in as tested. Record the browser, device, and lighting for each session.
 | --- | --- | --- |
 | Side-on: "Tracking side" matches the leg nearest the camera | Correct side | ✅ Phone: correct |
 | Facing the camera: reps counted | ? (bug 6) | ✅ Phone: counted correctly, but shows one side only |
+| Facing the camera: last rep depth | Similar to side-on | ✅ Phone: looked good |
+| Facing the camera: side stable with slight rotation | Stable | ❌ Phone: flips left/right (bug 5) |
 | Side-on, deep slow squat (~3 s) | Good rep | |
 | Side-on, parallel squat (~100°) | Rep, "go deeper" | |
 | Side-on, shallow squat (~120°) | Not counted | |
@@ -129,7 +132,6 @@ Fill in as tested. Record the browser, device, and lighting for each session.
 | Too close (ankles out of frame) | "Can't see your leg" | |
 | Walk out of frame and back in | Message clears (bug 7) | |
 | Start the camera while seated, stand up | No rep (bug 3) | |
-| "Tracking side" stays stable during reps | Stable (bug 5) | |
 | Skeleton lines up with body | Aligned (bug 8) | |
 | Deny camera permission, then "Try again" | Clear error, recovers | |
 | `landmarks[i].visibility` is populated (check in console) | Values 0–1 | |
