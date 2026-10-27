@@ -93,7 +93,8 @@ The tech stack may change as we develop and test the initial prototype.
 
 Main issues found in testing so far. Full details, simulated test results, and the manual test checklist are in [docs/known-issues.md](docs/known-issues.md).
 
-- Fast squats (under about 1 s) may not count or get graded too shallow, especially on slower computers.
+- Walking out of frame and back in adds a fake rep ("go a bit deeper").
+- Very fast squats may be under-counted on slower computers (seen in simulation, not yet in real use).
 - Squats shallower than about 105° never count.
 - A small knee wobble can show "That rep didn't count".
 - Starting the camera while seated and then standing counts a rep.

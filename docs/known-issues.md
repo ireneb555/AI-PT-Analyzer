@@ -7,7 +7,8 @@ Owners below follow the "Tasks For Next Week" assignments: rep counting goes to 
 
 | # | Issue | Area | Owner | Found by |
 | --- | --- | --- | --- | --- |
-| 1 | Fast squats aren't counted, or are graded too shallow | Thresholds / smoothing | Krishna | Simulation |
+| 0 | **Walking back into frame adds a fake rep** ("go deeper") | Rep counting | Krishna | **Confirmed**, manual test (phone) |
+| 1 | Very fast squats may be under-counted on slow devices | Thresholds / smoothing | Krishna | Simulation only. Fast squats counted fine on the phone |
 | 2 | Small knee wobble shows "That rep didn't count" | Rep counting | Krishna | Simulation |
 | 3 | Rep counted when starting seated or crouched | Rep counting | Krishna | Simulation |
 | 4 | Squats of about 110° never count | Thresholds | Krishna | Simulation |
@@ -52,8 +53,17 @@ Five deep 1-second squats in a row with no pause counted correctly (5/5).
 
 ## Bugs
 
-### 1. Fast squats aren't counted, or are graded too shallow
+### 0. Walking back into frame adds a fake rep (confirmed)
+**Where:** `movement.js`, `RepCounter.update`; `src/App.jsx`, `processFrame`
+**Found:** manual test on a phone.
+**Steps:** Start tracking, walk out of frame, then walk back in.
+**Expected:** "No person detected" clears and the rep count is unchanged.
+**Actual:** The rep count goes up by 1 and the message says "Rep counted, but go a bit deeper next time."
+**Likely cause:** While you're walking in, the leg is partly out of frame or bent mid-stride, so the measured knee angle dips below the "squatting" threshold and then rises back above "standing". That looks like a squat to `RepCounter`. The counter also keeps its stage and the smoothed angle from before you left, instead of resetting when tracking is lost. This is the same weakness as bug 3, and it's the most visible rep-count error found so far.
+
+### 1. Very fast squats may be under-counted on slow devices
 **Where:** `src/App.jsx` (smoothing), `movement.js` (`CONFIG`)
+**Manual result:** Fast squats **counted correctly** on the phone. The problem below appears only in simulation, at very fast speeds (~0.5 s) or low frame rates (15 fps), so it's lower priority until someone sees it on a slower laptop.
 The knee angle is smoothed with `smoothed += 0.35 × (raw − smoothed)` once per frame, which flattens the bottom of a quick squat. A 90° squat done in 0.5 s reads as about 98° at 30 fps and about 109° at 15 fps. It's then graded "go deeper" or not counted at all.
 Because smoothing happens per frame instead of per unit of time, **the same squat scores differently on slower computers**.
 
@@ -88,7 +98,7 @@ Reported depth looked reasonable head-on. The side does flip with slight body ro
 ### 7. Warning messages stick after the problem is fixed
 **Where:** `src/App.jsx`, `processFrame`
 **Steps:** Start the camera, step out of frame, step back in.
-**Actual:** "No person detected" or "Can't see your leg clearly" stays on screen until the next rep, even though tracking has resumed.
+**Actual:** "No person detected" or "Can't see your leg clearly" stays on screen until the next rep event, even though tracking has resumed. In the phone test the message did clear on re-entry, but only because the fake rep from bug 0 replaced it.
 
 ### 8. Skeleton overlay misaligned on non-4:3 cameras (needs webcam confirmation)
 **Where:** `style.css`
@@ -122,15 +132,15 @@ Fill in as tested. Record the browser, device, and lighting for each session.
 | Facing the camera: reps counted | ? (bug 6) | ✅ Phone: counted correctly, but shows one side only |
 | Facing the camera: last rep depth | Similar to side-on | ✅ Phone: looked good |
 | Facing the camera: side stable with slight rotation | Stable | ❌ Phone: flips left/right (bug 5) |
+| Side-on, fast squats (< 1 s) | Counted | ✅ Phone: counted |
+| 10 reps in a row, normal pace | 10 reps | ✅ Phone: all counted when deep enough. Shallower reps aren't counted (bug 4) |
+| Walk out of frame and back in | Message clears, no rep | ❌ Phone: message clears but a fake "go deeper" rep is added (bug 0) |
 | Side-on, deep slow squat (~3 s) | Good rep | |
 | Side-on, parallel squat (~100°) | Rep, "go deeper" | |
 | Side-on, shallow squat (~120°) | Not counted | |
-| Side-on, fast squats (< 1 s) | Counted (bug 1) | |
-| 10 reps in a row, normal pace | 10 reps | |
 | Camera at 45° | ? | |
 | Camera low (on desk) vs. eye level | ? | |
 | Too close (ankles out of frame) | "Can't see your leg" | |
-| Walk out of frame and back in | Message clears (bug 7) | |
 | Start the camera while seated, stand up | No rep (bug 3) | |
 | Skeleton lines up with body | Aligned (bug 8) | |
 | Deny camera permission, then "Try again" | Clear error, recovers | |
