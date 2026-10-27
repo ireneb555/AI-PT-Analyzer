@@ -12,7 +12,7 @@ Owners below follow the "Tasks For Next Week" assignments: rep counting goes to 
 | 3 | Rep counted when starting seated or crouched | Rep counting | Krishna | Simulation |
 | 4 | Squats of about 110° never count | Thresholds | Krishna | Simulation |
 | 5 | Tracked leg can flip between frames | Tracking | Akshay | Code review, needs webcam test |
-| 6 | Facing the camera, squats likely aren't counted | Tracking / camera position | Akshay | Code review, needs webcam test |
+| 6 | Facing the camera, the app still reports only one leg ("left"/"right") | Tracking / camera position | Akshay | Manual test (phone) |
 | 7 | Warning messages stick after the problem is fixed | UI | Irene | Code review |
 | 8 | Skeleton overlay misaligned on non-4:3 cameras | UI | Irene | Code review, needs webcam test |
 | 9 | No way to stop the camera | UI | Irene | Code review |
@@ -77,8 +77,12 @@ A rep only counts once the knee bends past 105°. Rehab users may not be able to
 **Where:** `movement.js`, `pickSide`
 `pickSide` re-picks the more visible leg on every frame, with no hysteresis. When both legs are similarly visible, the side can flip mid-rep. The smoothed angle then mixes two different legs, and the "Tracking side" label flickers. (This matches Akshay's task: "prevent the tracker from switching between left and right legs.")
 
-### 6. Facing the camera, squats likely aren't counted (needs webcam confirmation)
-The knee angle is measured in 2D. When the user faces the camera, their knees move toward the lens, so hip, knee, and ankle stay nearly in a vertical line on screen and the measured angle barely changes. The app only says "Stand side-on" before you start, and gives no warning while running.
+### 6. Facing the camera, the app still reports only one leg
+**Found:** manual test on a phone (front camera).
+**Steps:** Face the camera head-on and do squats.
+**Expected:** Either a "front view" mode that uses both legs, or a prompt to turn side-on.
+**Actual:** Reps **were counted correctly**. Code review had predicted they wouldn't be, but in practice it worked. However, "Tracking side" still shows "left" or "right", because `pickSide` always picks the single most visible leg and has no front-view case. Only one knee is measured, so a problem in the other leg would go unnoticed.
+**Still to check:** whether the side stays fixed or flips during head-on reps (see bug 5), and whether the reported depth matches the side-on depth for the same squat.
 
 ### 7. Warning messages stick after the problem is fixed
 **Where:** `src/App.jsx`, `processFrame`
@@ -106,16 +110,20 @@ The WASM runtime and the model are downloaded from CDNs on every start, and the 
 
 ## Manual webcam checklist
 
-Fill in as tested. Record the browser, laptop, and lighting for each session.
+Fill in as tested. Record the browser, device, and lighting for each session.
+
+**Test setups**
+- **Phone:** the app opened in the phone browser over HTTPS from the laptop dev server, using the front camera. The laptop's built-in camera was blocked at the time (see bug 12).
 
 | Scenario | Expected | Result |
 | --- | --- | --- |
+| Side-on: "Tracking side" matches the leg nearest the camera | Correct side | ✅ Phone: correct |
+| Facing the camera: reps counted | ? (bug 6) | ✅ Phone: counted correctly, but shows one side only |
 | Side-on, deep slow squat (~3 s) | Good rep | |
 | Side-on, parallel squat (~100°) | Rep, "go deeper" | |
 | Side-on, shallow squat (~120°) | Not counted | |
 | Side-on, fast squats (< 1 s) | Counted (bug 1) | |
 | 10 reps in a row, normal pace | 10 reps | |
-| Facing the camera | ? (bug 6) | |
 | Camera at 45° | ? | |
 | Camera low (on desk) vs. eye level | ? | |
 | Too close (ankles out of frame) | "Can't see your leg" | |

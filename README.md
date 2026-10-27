@@ -98,7 +98,7 @@ Main issues found in testing so far. Full details, simulated test results, and t
 - A small knee wobble can show "That rep didn't count".
 - Starting the camera while seated and then standing counts a rep.
 - The tracked leg can switch between left and right mid-rep.
-- Tracking needs a side-on view. Facing the camera likely won't count reps.
+- Facing the camera still counts reps, but only one leg is measured (it shows "left" or "right", not both).
 - Warning messages don't clear after you step back into frame.
 - There's no button to stop the camera.
 
