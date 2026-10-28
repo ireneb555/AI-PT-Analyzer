@@ -53,7 +53,7 @@ video, canvas {
   transform: scaleX(-1);
 }
 
-video { object-fit: cover; }
+video, canvas { object-fit: cover; }
 
 .panel {
   display: flex;

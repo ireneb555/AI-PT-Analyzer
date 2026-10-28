@@ -111,7 +111,10 @@ export default function App() {
       const landmarks = result.landmarks?.[0];
 
       if (!landmarks) {
-        setFeedback({ message: "No person detected. Make sure your full body is in frame.", kind: "" });
+        setFeedback({
+          message: "No person detected. Make sure your full body is in frame.",
+          kind: "warning",
+        });
       } else {
         drawingRef.current.drawLandmarks(landmarks, { radius: 3, color: "#4fd1a5" });
         drawingRef.current.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
@@ -123,7 +126,7 @@ export default function App() {
         if (trackedSide.visibility < CONFIG.minVisibility) {
           setFeedback({
             message: "Can't see your leg clearly. Step back so your hip to ankle is in frame.",
-            kind: "",
+            kind: "warning",
           });
         } else {
           const [hip, knee, ankle] = trackedSide.indices.map((index) => ({
@@ -133,6 +136,8 @@ export default function App() {
           const rawAngle = jointAngle(hip, knee, ankle);
 
           if (rawAngle !== null) {
+            setFeedback((current) =>
+              current.kind === "warning" ? { message: "", kind: "" } : current);
             const smoothedAngle = smoothedAngleRef.current === null
               ? rawAngle
               : smoothedAngleRef.current + CONFIG.smoothing * (rawAngle - smoothedAngleRef.current);
@@ -194,6 +199,20 @@ export default function App() {
     }
   }
 
+  function handleStop() {
+    runningRef.current = false;
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    stopCamera();
+    const canvas = canvasRef.current;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    setPhase("idle");
+    setStatus("Camera stopped.");
+    setFeedback({ message: "", kind: "" });
+  }
+
   function handleReset() {
     counterRef.current.reset();
     smoothedAngleRef.current = null;
@@ -201,6 +220,7 @@ export default function App() {
     setDepth(null);
     setAngle(null);
     setSide(null);
+    setFeedback({ message: "", kind: "" });
   }
 
   return (
@@ -220,6 +240,9 @@ export default function App() {
         <div id="feedback" className={feedback.kind} aria-live="polite">{feedback.message}</div>
         <button type="button" onClick={handleStart} disabled={phase === "loading" || phase === "running"}>
           {phase === "idle" ? "Start camera" : phase === "loading" ? "Loading..." : phase === "running" ? "Camera on" : "Try again"}
+        </button>
+        <button type="button" className="secondary" onClick={handleStop} disabled={phase !== "running"}>
+          Stop camera
         </button>
         <button type="button" className="secondary" onClick={handleReset}>Reset reps</button>
         <div id="status" role="status">{status}</div>
